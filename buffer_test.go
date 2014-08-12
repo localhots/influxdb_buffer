@@ -53,6 +53,21 @@ func TestFlush(t *testing.T) {
 	}
 }
 
+func TestClear(t *testing.T) {
+	fn := func(series []*influxdb.Series) {}
+	b := NewBuffer(10, fn)
+	defer b.Close()
+	b.Add(&influxdb.Series{})
+
+	if b.Size() != 1 {
+		t.Error("Expected buffer to contain 1 series before clearing, got %d", b.Size())
+	}
+	b.Clear()
+	if b.Size() != 0 {
+		t.Error("Expected buffer to be empty after clearing, got %d series", b.Size())
+	}
+}
+
 func TestLookup(t *testing.T) {
 	fn := func(series []*influxdb.Series) {}
 	b := NewBuffer(10, fn)

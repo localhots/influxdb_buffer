@@ -56,7 +56,10 @@ func (b *Buffer) Flush() {
 	}
 
 	go b.fn(sbuffer)
+	b.Clear()
+}
 
+func (b *Buffer) Clear() {
 	b.series = make(map[string]*influxdb.Series)
 	b.size = 0
 }
