@@ -19,7 +19,7 @@ import (
 func handleMetrics(rw http.ResponseWriter, req *http.Request) {
 	ua := parseUserAgent(req.UserAgent())
 	geo := fetchGeoInfo(req.RemoteAddr)
-	
+
 	buf.Add(
         &influxdb.Series{
             Name:    "app.browsers",
@@ -44,6 +44,8 @@ var (
 
 func main() {
 	buf = buffer.New(100, writeMetrics)
+    defer buf.Close()
+
 	http.HandleFunc("/metrics", handleMetrics)
 	http.ListenAndServe(":8080", nil)
 }
