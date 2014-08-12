@@ -59,6 +59,43 @@ func (b *Buffer) Flush() {
 	b.size = 0
 }
 
+// Searches for points of given series that matches provided conditions
+func (b *Buffer) Lookup(series string, conds map[string]interface{}) (res *influxdb.Series) {
+	s, ok := b.series[series]
+	if !ok {
+		return
+	}
+
+	// Building reversed column index
+	colind := make(map[string]int)
+	for i, name := range s.Columns {
+		colind[name] = i
+	}
+
+	for _, row := range s.Points {
+		good := true
+		for key, val := range conds {
+			ki, _ := colind[key]
+			if row[ki] != val {
+				good = false
+			}
+		}
+		if good {
+			// We need to return nil if there are no series/rows that matches condition
+			if res == nil {
+				res = &influxdb.Series{
+					Name:    s.Name,
+					Columns: s.Columns,
+					Points:  [][]interface{}{},
+				}
+			}
+			res.Points = append(res.Points, row)
+		}
+	}
+
+	return
+}
+
 // Closes buffer income channel and flushes all remaining series into database
 // It also terminates its aggregation coroutine
 func (b *Buffer) Close() {

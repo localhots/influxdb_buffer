@@ -52,6 +52,48 @@ func TestFlush(t *testing.T) {
 	}
 }
 
+func TestLookup(t *testing.T) {
+	fn := func(series []*influxdb.Series) {}
+	b := NewBuffer(10, fn)
+	b.Add(&influxdb.Series{
+		Name:    "foo",
+		Columns: []string{"a", "b", "c"},
+		Points:  [][]interface{}{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}},
+	})
+
+	var res *influxdb.Series
+
+	// Should not match inexistent series
+	res = b.Lookup("bar", map[string]interface{}{})
+	if res != nil {
+		t.Error("Expected nil result, got non-nil")
+	}
+
+	// Should not match existent series with false condition
+	res = b.Lookup("bar", map[string]interface{}{"a": 2})
+	if res != nil {
+		t.Error("Expected nil result, got non-nil")
+	}
+
+	// Should match series with empty condition
+	res = b.Lookup("foo", map[string]interface{}{})
+	if res == nil {
+		t.Error("Expected non-nil result, got nil")
+	}
+	if len(res.Points) != 3 {
+		t.Errorf("Expected 3 resulting rows, got %d", len(res.Points))
+	}
+
+	// Should match series with true condition
+	res = b.Lookup("foo", map[string]interface{}{"a": 1})
+	if res == nil {
+		t.Error("Expected non-nil result, got nil")
+	}
+	if len(res.Points) != 1 {
+		t.Errorf("Expected 1 resulting rows, got %d", len(res.Points))
+	}
+}
+
 func TestClose(t *testing.T) {
 	fn := func(series []*influxdb.Series) {}
 	b := NewBuffer(10, fn)
