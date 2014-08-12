@@ -62,6 +62,9 @@ func (b *Buffer) Flush() {
 }
 
 // Searches for points of given series that matches provided conditions
+// Two formats are accepted:
+//     1. plain (e.g: "foo")
+//     2. regexp (e.g: "/^foo_.*?_bar$/")
 // All resulting series MUST have the same set of columns in the same order
 func (b *Buffer) Lookup(pattern string, conds map[string]interface{}) (res map[string]*influxdb.Series, err error) {
 	res = make(map[string]*influxdb.Series)
