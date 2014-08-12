@@ -55,42 +55,101 @@ func TestFlush(t *testing.T) {
 func TestLookup(t *testing.T) {
 	fn := func(series []*influxdb.Series) {}
 	b := NewBuffer(10, fn)
-	b.Add(&influxdb.Series{
-		Name:    "foo",
-		Columns: []string{"a", "b", "c"},
-		Points:  [][]interface{}{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}},
-	})
+	b.Add(
+		&influxdb.Series{
+			Name:    "foo",
+			Columns: []string{"a", "b", "c"},
+			Points:  [][]interface{}{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}},
+		},
+		&influxdb.Series{
+			Name:    "banana",
+			Columns: []string{"a", "b", "c"},
+			Points:  [][]interface{}{{11, 22, 33}},
+		},
+	)
 
-	var res *influxdb.Series
+	// Got to wait for aggragation coroutine to finish
+	// XXX: Sleep is no good for testing. Need to come up with a better solution
+	time.Sleep(10 * time.Millisecond)
+
+	var (
+		res map[string]*influxdb.Series
+		err error
+	)
 
 	// Should not match inexistent series
-	res = b.Lookup("bar", map[string]interface{}{})
-	if res != nil {
-		t.Error("Expected nil result, got non-nil")
+	res, err = b.Lookup("bar", map[string]interface{}{})
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+	if len(res) > 0 {
+		t.Errorf("Expected empty result, got %d series", len(res))
 	}
 
 	// Should not match existent series with false condition
-	res = b.Lookup("bar", map[string]interface{}{"a": 2})
-	if res != nil {
-		t.Error("Expected nil result, got non-nil")
+	res, err = b.Lookup("bar", map[string]interface{}{"a": 2})
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+	if len(res) > 0 {
+		t.Errorf("Expected empty result, got %d series", len(res))
 	}
 
 	// Should match series with empty condition
-	res = b.Lookup("foo", map[string]interface{}{})
-	if res == nil {
-		t.Error("Expected non-nil result, got nil")
+	res, err = b.Lookup("foo", map[string]interface{}{})
+	if err != nil {
+		t.Error("Unexpected error")
 	}
-	if len(res.Points) != 3 {
-		t.Errorf("Expected 3 resulting rows, got %d", len(res.Points))
+	if len(res) != 1 {
+		t.Errorf("Expected result with 1 series, got %d", len(res))
+	}
+	if len(res["foo"].Points) != 3 {
+		t.Errorf("Expected 3 points, got %d", len(res["foo"].Points))
 	}
 
 	// Should match series with true condition
-	res = b.Lookup("foo", map[string]interface{}{"a": 1})
-	if res == nil {
-		t.Error("Expected non-nil result, got nil")
+	res, err = b.Lookup("foo", map[string]interface{}{"a": 1})
+	if err != nil {
+		t.Error("Unexpected error")
 	}
-	if len(res.Points) != 1 {
-		t.Errorf("Expected 1 resulting rows, got %d", len(res.Points))
+	if len(res) != 1 {
+		t.Errorf("Expected result with 1 series, got %d", len(res))
+	}
+	if len(res["foo"].Points) != 1 {
+		t.Errorf("Expected 1 point, got %d", len(res["foo"].Points))
+	}
+
+	// Should match series with regexp
+	res, err = b.Lookup("/\\/", map[string]interface{}{})
+	if err == nil {
+		t.Error("Expected error, got nil")
+	}
+	if len(res) > 0 {
+		t.Errorf("Expected empty result, got %d series", len(res))
+	}
+
+	res, err = b.Lookup("/oo$/", map[string]interface{}{})
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected result with 1 series, got %d", len(res))
+	}
+
+	res, err = b.Lookup("/.*/", map[string]interface{}{})
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+	if len(res) != 2 {
+		t.Errorf("Expected result with 2 series, got %d", len(res))
+	}
+
+	res, err = b.Lookup("/nothing/", map[string]interface{}{})
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+	if len(res) != 0 {
+		t.Errorf("Expected empty result, got %d series", len(res))
 	}
 }
 

@@ -1,6 +1,8 @@
 package buffer
 
 import (
+	"regexp"
+
 	influxdb "github.com/influxdb/influxdb/client"
 )
 
@@ -60,36 +62,41 @@ func (b *Buffer) Flush() {
 }
 
 // Searches for points of given series that matches provided conditions
-func (b *Buffer) Lookup(series string, conds map[string]interface{}) (res *influxdb.Series) {
-	s, ok := b.series[series]
-	if !ok {
+// All resulting series MUST have the same set of columns in the same order
+func (b *Buffer) Lookup(pattern string, conds map[string]interface{}) (res map[string]*influxdb.Series, err error) {
+	res = make(map[string]*influxdb.Series)
+
+	sers, err := b.matchSeries(pattern)
+	if err != nil || len(sers) == 0 {
 		return
 	}
 
 	// Building reversed column index
 	colind := make(map[string]int)
-	for i, name := range s.Columns {
+	for i, name := range sers[0].Columns {
 		colind[name] = i
 	}
 
-	for _, row := range s.Points {
-		good := true
-		for key, val := range conds {
-			ki, _ := colind[key]
-			if row[ki] != val {
-				good = false
-			}
-		}
-		if good {
-			// We need to return nil if there are no series/rows that matches condition
-			if res == nil {
-				res = &influxdb.Series{
-					Name:    s.Name,
-					Columns: s.Columns,
-					Points:  [][]interface{}{},
+	for _, s := range sers {
+		for _, row := range s.Points {
+			good := true
+			for key, val := range conds {
+				ki, _ := colind[key]
+				if row[ki] != val {
+					good = false
 				}
 			}
-			res.Points = append(res.Points, row)
+			if good {
+				_, ok := res[s.Name]
+				if !ok {
+					res[s.Name] = &influxdb.Series{
+						Name:    s.Name,
+						Columns: s.Columns,
+						Points:  [][]interface{}{},
+					}
+				}
+				res[s.Name].Points = append(res[s.Name].Points, row)
+			}
 		}
 	}
 
@@ -124,4 +131,29 @@ func (b *Buffer) aggregate() {
 			b.Flush()
 		}
 	}
+}
+
+func (b *Buffer) matchSeries(pattern string) (res []*influxdb.Series, err error) {
+	if len(pattern) > 2 && pattern[:1] == "/" && pattern[len(pattern)-1:] == "/" {
+		var reg *regexp.Regexp
+
+		reg, err = regexp.Compile(pattern[1 : len(pattern)-1])
+		if err != nil {
+			return
+		}
+
+		for name, s := range b.series {
+			ok := reg.MatchString(name)
+			if ok {
+				res = append(res, s)
+			}
+		}
+	} else {
+		s, ok := b.series[pattern]
+		if ok {
+			res = append(res, s)
+		}
+	}
+
+	return
 }
