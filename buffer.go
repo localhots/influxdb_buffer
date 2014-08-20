@@ -59,6 +59,7 @@ func (b *Buffer) Flush() {
 	b.Clear()
 }
 
+// Clears buffer contents without flushing series to database
 func (b *Buffer) Clear() {
 	b.series = make(map[string]*influxdb.Series)
 	b.size = 0
