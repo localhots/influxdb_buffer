@@ -30,7 +30,9 @@ func NewBuffer(capacity int, fn func(series []*influxdb.Series)) *Buffer {
 		series:   make(map[string]*influxdb.Series),
 		capacity: capacity,
 	}
-	go b.aggregate()
+	if b.capacity > 0 {
+		go b.aggregate()
+	}
 
 	return b
 }
@@ -43,6 +45,11 @@ func (b *Buffer) Size() int {
 
 // Adds one or multiple series to buffer
 func (b *Buffer) Add(series ...*influxdb.Series) {
+	if b.capacity == 0 {
+		b.fn(series)
+		return
+	}
+
 	for _, item := range series {
 		b.in <- item
 	}
@@ -53,6 +60,10 @@ func (b *Buffer) Flush() {
 	sbuffer := []*influxdb.Series{}
 	for _, item := range b.series {
 		sbuffer = append(sbuffer, item)
+	}
+
+	if len(sbuffer) == 0 {
+		return
 	}
 
 	go b.fn(sbuffer)
