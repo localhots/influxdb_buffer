@@ -57,13 +57,13 @@ func (b *Buffer) Add(series ...*influxdb.Series) {
 
 // Flushes aggregated series into database
 func (b *Buffer) Flush() {
+	if len(b.series) == 0 {
+		return
+	}
+
 	sbuffer := []*influxdb.Series{}
 	for _, item := range b.series {
 		sbuffer = append(sbuffer, item)
-	}
-
-	if len(sbuffer) == 0 {
-		return
 	}
 
 	b.fn(sbuffer)
