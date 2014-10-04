@@ -34,19 +34,10 @@ func TestAdd(t *testing.T) {
 }
 
 func TestFlush(t *testing.T) {
-	res := make(chan []*influxdb.Series, 1)
-	fn := func(series []*influxdb.Series) { res <- series }
+	fn := func(series []*influxdb.Series) {}
 	b := NewBuffer(1, fn)
 	defer b.Close()
 	b.Add(&influxdb.Series{})
-
-	timer := time.NewTimer(time.Second)
-
-	select {
-	case <-res:
-	case <-timer.C:
-		t.Error("Flushing did not happen")
-	}
 
 	if b.Size() != 0 {
 		t.Error("Flushing buffer does not make it empty again")

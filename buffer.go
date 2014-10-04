@@ -66,7 +66,7 @@ func (b *Buffer) Flush() {
 		return
 	}
 
-	go b.fn(sbuffer)
+	b.fn(sbuffer)
 	b.Clear()
 }
 
