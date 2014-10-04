@@ -78,7 +78,7 @@ func TestLookup(t *testing.T) {
 
 	// Got to wait for aggragation coroutine to finish
 	// XXX: Sleep is no good for testing. Need to come up with a better solution
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	var (
 		res map[string]*influxdb.Series
@@ -203,12 +203,10 @@ func TestAggregate(t *testing.T) {
 		},
 	)
 
-	timer := time.NewTimer(time.Second)
-
 	var series []*influxdb.Series
 	select {
 	case series = <-res:
-	case <-timer.C:
+	case <-time.After(100 * time.Millisecond):
 		t.Error("Flushing did not happen")
 	}
 
