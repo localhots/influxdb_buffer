@@ -99,14 +99,13 @@ func (b *Buffer) Lookup(pattern string, conds map[string]interface{}) (res map[s
 		for _, row := range s.Points {
 			good := true
 			for key, val := range conds {
-				ki, _ := colind[key]
-				if row[ki] != val {
+				if ki, _ := colind[key]; row[ki] != val {
 					good = false
+					break
 				}
 			}
 			if good {
-				_, ok := res[s.Name]
-				if !ok {
+				if _, ok := res[s.Name]; !ok {
 					res[s.Name] = &influxdb.Series{
 						Name:    s.Name,
 						Columns: s.Columns,
